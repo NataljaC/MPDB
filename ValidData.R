@@ -1,26 +1,32 @@
 # Load the libraries
 library(RMariaDB)
+library(RMySQL)
 library(dplyr)
 
 sql_dump <- readLines("micropoll-.sql")
 
 # Define database connection details
-db_server <- "192.124.245.26"
-db_name <- "micropoll"
+host <- "127.0.0.1"
+dbname <- "micropoll"
+user <- "nickleong"
+pass <- "Password1!"
 
-# Create a connection to the database
-connection <- dbConnect(
-  drv = RMariaDB::MariaDB(),
-  dbname = db_name,
-  host = db_server
+# Create a database connection
+con <- dbConnect(
+  MariaDB(),
+  dbname = dbname,
+  host = host,
+  user = user,
+  password = pass
 )
+
 
 # Read in data
 data <- read.csv("image_explorer_example_data1.csv")
 data <- data %>%
   select(-PolymerTypeOfParticle, -PolymerTypeOfParticleOriginal, -ColorOriginal, -MorphologyOriginal)
 
-# Rename the columns to match sql columns
+# Rename the columns to match sql column
 
 # Particles table
 colnames(data)[colnames(data) == "ImageType"] <- "IDParticles"
@@ -58,27 +64,27 @@ result <- TRUE
 # Execute INSERT statements with data
 for (i in 1:nrow(data)) {
   params <- unlist(data[i, ])
-  if (!dbExecute(connection, sql_insert_particles, params)) {
+  if (!dbExecute(con, sql_insert_particles, params)) {
     result <- FALSE
     break  # Exit the loop on error
   }
   
-  if (!dbExecute(connection, sql_insert_contributor, params)) {
+  if (!dbExecute(con, sql_insert_contributor, params)) {
     result <- FALSE
     break
   }
   
-  if (!dbExecute(connection, sql_insert_equipment, params)) {
+  if (!dbExecute(con, sql_insert_equipment, params)) {
     result <- FALSE
     break
   }
   
-  if (!dbExecute(connection, sql_insert_size, params)) {
+  if (!dbExecute(con, sql_insert_size, params)) {
     result <- FALSE
     break
   }
   
-  if (!dbExecute(connection, sql_insert_methods, params)) {
+  if (!dbExecute(con, sql_insert_methods, params)) {
     result <- FALSE
     break
   }
@@ -86,7 +92,7 @@ for (i in 1:nrow(data)) {
 
 # Close the database connection
 tryCatch({
-  dbDisconnect(connection)
+  dbDisconnect(con)
 }, error = function(e) {
   cat("Error closing database connection.\n")
 })
