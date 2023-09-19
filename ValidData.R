@@ -8,8 +8,8 @@ sql_dump <- readLines("micropoll-.sql")
 # Define database connection details
 host <- "127.0.0.1"
 dbname <- "micropoll"
-user <- "nickleong"
-pass <- "Password1!"
+user <- "root"
+pass <- "Mooreplastic1010!"
 
 # Create a database connection
 con <- dbConnect(
