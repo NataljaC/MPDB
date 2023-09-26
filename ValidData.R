@@ -1,105 +1,66 @@
 # Load the libraries
 library(RMariaDB)
+library(DBI)
 library(RMySQL)
 library(dplyr)
 
-sql_dump <- readLines("micropoll-.sql")
-
 # Define database connection details
-host <- "127.0.0.1"
-dbname <- "micropoll"
-user <- "root"
-pass <- "Mooreplastic1010!"
+host <- "db-mysql-nyc1-90791-do-user-14694805-0.b.db.ondigitalocean.com"
+dbname <- "marpoll"
+port <- "25060"
+user <- "nick"
+pass <- "AVNS_2OIiaAGOqBnUMUsVVFo"
 
 # Create a database connection
 con <- dbConnect(
   MariaDB(),
   dbname = dbname,
   host = host,
+  port = port,
   user = user,
   password = pass
 )
 
+# Read in "colors" table
+colors <- read.csv("/Users/nick_leong/Downloads/Copy of Copy of Image Data Sharing (Responses) - Form Responses 1.csv", stringsAsFactors = FALSE)
+colors <- colors %>%
+  select(Color)
+colors <- colors %>%
+  mutate(IDColor = row_number())
 
-# Read in data
-data <- read.csv("image_explorer_example_data1.csv")
-data <- data %>%
-  select(-PolymerTypeOfParticle, -PolymerTypeOfParticleOriginal, -ColorOriginal, -MorphologyOriginal)
+dbWriteTable(con, name = "colors", value = colors, append = TRUE, row.names = FALSE)
 
-# Rename the columns to match sql column
+# Read in "contributors" table
+contributors <- read.csv("/Users/nick_leong/Downloads/Copy of Copy of Image Data Sharing (Responses) - Form Responses 1.csv", stringsAsFactors = FALSE)
+contributors <- contributors %>%
+  select(Fisrt_name, Last_name)
+contributors <- contributors %>%
+  mutate(IDContributor = row_number())
+contributors <- contributors[contributors$IDContributor ,]
 
-# Particles table
-colnames(data)[colnames(data) == "ImageType"] <- "IDParticles"
-colnames(data)[colnames(data) == "ImageFile"] <- "Sample"
-colnames(data)[colnames(data) == "ResearcherName"] <- "Analyst"
-colnames(data)[colnames(data) == "AnalysisDate"] <- "Analysis_date"
-colnames(data)[colnames(data) == "Color"] <- "Colour"
-colnames(data)[colnames(data) == "Morphology"] <- "Shape"
-colnames(data)[colnames(data) == "SizeOfParticle"] <- "Size_1_[µm]"
+dbWriteTable(con, name = "contributor", value = contributors, append = TRUE, row.names = FALSE)
 
-# Contributor table
-colnames(data)[colnames(data) == "Affiliation"] <- "Institution"
-colnames(data)[colnames(data) == "Citation"] <- "IDContributor"
+# Read in "particles" table
+particles <- read.csv("/Users/nick_leong/Downloads/Copy of Copy of Image Data Sharing (Responses) - Form Responses 1.csv",na.strings = "",stringsAsFactors = FALSE)
+particles <- particles %>%
+  select(Shape, Size_fraction, Categorised_result)
+particles$Categorised_result 
+particles <- particles %>%
+  mutate(IDParticles = row_number())
+particles <- particles %>%
+  mutate(Preferred_method = row_number())
+particles <- particles %>%
+  mutate(Analyst = contributors$IDContributor)
+particles <- particles %>%
+  mutate(Colour = colors$Color)
+particles$Amount <- rep(1, nrow(particles)) 
+particles$Sample <-paste("Sample", 1:nrow(data))
+particles <- particles[particles$IDParticles < 26,]
 
-# Equipment table
-colnames(data)[colnames(data) == "InstrumentName"] <- "Eq_Name"
-colnames(data)[colnames(data) == "Magnification"] <- "Eq_Specification"
+dbWriteTable(con, name = "particles", value = particles, append = TRUE, row.names = FALSE)
 
-# Size Fraction table
-colnames(data)[colnames(data) == "SizeDimension"] <- "Size_category"
 
-# Methods table
-colnames(data)[colnames(data) == "MicroplasticImages"] <- "Images"
 
-# Define SQL statements for each table
-sql_insert_particles <- "INSERT INTO particles (IDParticles, Sample, Preferred_method, Arrival_date, Analysis_date, Amount, Analyst, Size_fraction, Colour, Shape, `Size_1_[µm]`, `Size_2_[µm]`, `Size_3_[µm]`, Categorised_result, Indication_paint, Particle_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-sql_insert_contributor <- "INSERT INTO contributor (Institution, IDContributor) VALUES (?, ?)"
-sql_insert_equipment <- "INSERT INTO equipment (Eq_Name, Eq_Specification) VALUES (?, ?)"
-sql_insert_size <- "INSERT INTO size (Size_category) VALUES (?)"
-sql_insert_methods <- "INSERT INTO methods (Images) VALUES (?)"
 
-# Initialize a result variable
-result <- TRUE
-  
-# Execute INSERT statements with data
-for (i in 1:nrow(data)) {
-  params <- unlist(data[i, ])
-  if (!dbExecute(con, sql_insert_particles, params)) {
-    result <- FALSE
-    break  # Exit the loop on error
-  }
-  
-  if (!dbExecute(con, sql_insert_contributor, params)) {
-    result <- FALSE
-    break
-  }
-  
-  if (!dbExecute(con, sql_insert_equipment, params)) {
-    result <- FALSE
-    break
-  }
-  
-  if (!dbExecute(con, sql_insert_size, params)) {
-    result <- FALSE
-    break
-  }
-  
-  if (!dbExecute(con, sql_insert_methods, params)) {
-    result <- FALSE
-    break
-  }
-}
+dbDisconnect(con)
 
-# Close the database connection
-tryCatch({
-  dbDisconnect(con)
-}, error = function(e) {
-  cat("Error closing database connection.\n")
-})
-
-# Check if data was inserted successfully
-if (result) {
-  cat("Data was inserted successfully.\n")
-} else {
-  cat("Error inserting data.\n")
-}
