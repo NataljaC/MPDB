@@ -4,12 +4,15 @@ library(DBI)
 library(RMySQL)
 library(dplyr)
 
+<<<<<<< HEAD
 # Define database connection details
 host <- "db-mysql-nyc1-90791-do-user-14694805-0.b.db.ondigitalocean.com"
 dbname <- "marpoll"
 port <- "25060"
 user <- "nick"
 pass <- "AVNS_2OIiaAGOqBnUMUsVVFo"
+=======
+>>>>>>> 8b702ee (new code for connection)
 
 # Create a database connection
 con <- dbConnect(
